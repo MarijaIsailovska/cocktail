@@ -80,7 +80,7 @@ export default {
     
     // Get favorite cocktails by filtering all cocktails
     const favoriteCocktails = computed(() => {
-      return cocktailStore.cocktails.filter(cocktail => 
+      return cocktailStore.allCocktails.filter(cocktail => 
         favoritesStore.favorites.includes(cocktail.idDrink)
       )
     })

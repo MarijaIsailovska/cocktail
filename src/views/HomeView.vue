@@ -131,13 +131,6 @@
         <!-- Action Buttons -->
         <div class="cocktail-actions">
           <button 
-            @click="addToShoppingList(cocktail)"
-            class="action-btn shopping-btn"
-            title="Add to Shopping List"
-          >
-            📝
-          </button>
-          <button 
             v-if="canMakeCocktail(cocktail).canMake"
             @click="viewCocktail(cocktail)"
             class="action-btn can-make-btn"

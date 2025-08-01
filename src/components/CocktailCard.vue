@@ -1,359 +1,310 @@
 <template>
-  <div class="cocktail-card" @click="selectCocktail">
-    <div class="card-image">
-      <img :src="cocktail.strDrinkThumb" :alt="cocktail.strDrink" />
+  <div
+    class="cocktail-card"
+    :class="{ 'is-favorite': isFavorite, 'is-custom': cocktail.isCustom }"
+    @click="selectCocktail"
+  >
+    <!-- Image Section -->
+    <div class="cocktail-image">
+      <img
+        :src="cocktail.strDrinkThumb || cocktail.image || defaultImage"
+        :alt="cocktail.strDrink || cocktail.name"
+        @error="handleImageError"
+      />
+
+      <!-- Difficulty Badge -->
       
-      <!-- Favorites Button -->
-      <button 
-        @click.stop="toggleFavorite" 
-        class="favorite-btn"
-        :class="{ active: isFavorite }"
-      >
-        <span class="heart-icon">{{ isFavorite ? '❤️' : '🤍' }}</span>
-      </button>
-      
+
+      <!-- Action Buttons Overlay -->
+      <div class="action-overlay">
+        <button
+          @click.stop="toggleFavorite"
+          class="action-btn favorite-btn"
+          :class="{ active: isFavorite }"
+          :title="isFavorite ? 'Remove from favorites' : 'Add to favorites'"
+        >
+          {{ isFavorite ? '❤️' : '🤍' }}
+        </button>
+
+        <button
+          @click.stop="addMissingToShoppingList"
+          class="action-btn shopping-btn"
+          title="Add missing ingredients to shopping list"
+        >
+          🛒
+        </button>
+      </div>
+
       <!-- Custom Badge -->
       <div v-if="cocktail.isCustom" class="custom-badge">
-        <span class="custom-icon">🧪</span>
-        <span class="custom-text">Custom</span>
+        <span>🧪</span>
+        Custom
       </div>
-      
-      <!-- Rating Badge for Custom Cocktails -->
-      <div v-if="cocktail.isCustom && cocktail.rating > 0" class="rating-badge">
-        <span class="rating-stars">⭐</span>
-        <span class="rating-value">{{ cocktail.rating.toFixed(1) }}</span>
-      </div>
-      
-      <div class="difficulty-badge" :style="{ backgroundColor: getDifficultyColor() }">
-        <span class="difficulty-icon">{{ getDifficultyIcon() }}</span>
-        <span class="difficulty-text">{{ getDifficulty().difficulty }}</span>
-      </div>
+
+      <!-- Card Overlay -->
       <div class="card-overlay">
         <span class="view-recipe">View Recipe</span>
       </div>
     </div>
-    <div class="card-content">
-      <h3 class="cocktail-name">{{ cocktail.strDrink }}</h3>
+
+    <!-- Content Section -->
+    <div class="cocktail-content">
+      <h3 class="cocktail-name">{{ cocktail.strDrink || cocktail.name }}</h3>
+
       <div class="cocktail-tags">
-        <span class="tag category">{{ cocktail.strCategory }}</span>
-        <span class="tag type" :class="cocktail.strAlcoholic.toLowerCase()">
-          {{ cocktail.strAlcoholic }}
-        </span>
+        <span class="tag category-tag">{{ cocktail.strCategory || 'ORDINARY DRINK' }}</span>
+        <span class="tag alcoholic-tag">{{ (cocktail.strAlcoholic || 'ALCOHOLIC').toUpperCase() }}</span>
       </div>
+
+      <div class="cocktail-details">
+        <div class="detail-item">
+          <span class="detail-icon">🧪</span>
+          <span class="detail-text">{{ ingredientsCount }} ingredients</span>
+        </div>
+
+        <div class="detail-item">
+          <span class="detail-icon">🍸</span>
+          <span class="detail-text">{{ cocktail.strGlass || 'Cocktail glass' }}</span>
+        </div>
+      </div>
+
+      <!-- Difficulty Info below content -->
       <div class="difficulty-info">
         <span class="ingredient-count">
           📋 {{ getDifficulty().ingredientCount }} ingredients
         </span>
-      </div>
-      <p v-if="cocktail.strGlass" class="glass-type">
-        🥃 {{ cocktail.strGlass }}
-      </p>
-      
-      <!-- Custom Cocktail Info -->
-      <div v-if="cocktail.isCustom" class="custom-info">
-        <div class="creation-date">
-          Created {{ formatDate(cocktail.dateCreated) }}
-        </div>
-        <div v-if="cocktail.notes" class="custom-notes">
-          💭 {{ truncateText(cocktail.notes, 60) }}
-        </div>
+        <span class="difficulty-level" :style="{ color: getDifficultyColor() }">
+          {{ getDifficultyIcon() }} {{ getDifficulty().difficulty }}
+        </span>
       </div>
     </div>
   </div>
 </template>
 
 <script>
-import { computed } from 'vue'
-import { useFavoritesStore } from '../stores/favoritesStore'
+import { computed } from "vue";
+import { useFavoritesStore } from "@/stores/favoritesStore";
+import { useShoppingListStore } from "@/stores/shoppingListStore";
 
 export default {
-  name: 'CocktailCard',
+  name: "CocktailCard",
   props: {
     cocktail: {
       type: Object,
-      required: true
-    }
+      required: true,
+    },
   },
-  emits: ['select-cocktail'],
+  emits: ["select-cocktail"],
   setup(props, { emit }) {
-    const favoritesStore = useFavoritesStore()
-    
-    const isFavorite = computed(() => 
-      favoritesStore.favorites.includes(props.cocktail.idDrink)
-    )
-    
-    const selectCocktail = () => {
-      emit('select-cocktail', props.cocktail)
-    }
-    
-    const toggleFavorite = () => {
-      favoritesStore.toggleFavorite(props.cocktail.idDrink)
-    }
-    
-    const getIngredients = () => {
-      const ingredients = []
-      for (let i = 1; i <= 15; i++) {
-        const ingredient = props.cocktail[`strIngredient${i}`]
-        if (ingredient && ingredient.trim()) {
-          ingredients.push(ingredient.trim())
+    const favoritesStore = useFavoritesStore();
+    const shoppingListStore = useShoppingListStore();
+    const getCocktailId = () => props.cocktail.idDrink || props.cocktail.id;
+    const defaultImage =
+      "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDMwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIiBmaWxsPSJsaW5lYXItZ3JhZGllbnQoMTM1ZGVnLCAjMWExYTFhLCAjMzMzKSIvPgo8Y2lyY2xlIGN4PSIxNTAiIGN5PSIxNTAiIHI9IjgwIiBmaWxsPSJyZ2JhKDI1NSwgMjU1LCAyNTUsIDAuMSkiLz4KPHN2ZyB4PSI5MCIgeT0iOTAiIHdpZHRoPSIxMjAiIGhlaWdodD0iMTIwIj4KICA8dGV4dCB4PSI2MCIgeT0iNzAiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSI0OCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+8J+NuDwvdGV4dD4KPC9zdmc+Cjwvc3ZnPgo=";
+
+    const isFavorite = computed(() =>
+      favoritesStore.favorites.includes(getCocktailId())
+    );
+
+    const ingredients = computed(() => {
+      const ingredientsList = [];
+
+      // Handle API cocktails (strIngredient1, strIngredient2, etc.)
+      if (props.cocktail.strIngredient1) {
+        for (let i = 1; i <= 15; i++) {
+          const ingredient = props.cocktail[`strIngredient${i}`];
+          const measure = props.cocktail[`strMeasure${i}`];
+          if (ingredient && ingredient.trim()) {
+            ingredientsList.push({
+              name: ingredient.trim(),
+              measure: measure ? measure.trim() : "",
+            });
+          }
         }
       }
-      return ingredients
-    }
-    
+      // Handle custom cocktails (ingredients array)
+      else if (
+        props.cocktail.ingredients &&
+        Array.isArray(props.cocktail.ingredients)
+      ) {
+        return props.cocktail.ingredients;
+      }
+
+      return ingredientsList;
+    });
+
+    const ingredientsCount = computed(() => ingredients.value.length);
+
+    const selectCocktail = () => {
+      emit("select-cocktail", props.cocktail);
+    };
+
+    const toggleFavorite = () => {
+      favoritesStore.toggleFavorite(getCocktailId());
+    };
+
+    const addMissingToShoppingList = () => {
+      shoppingListStore.addCocktailToShoppingList(props.cocktail);
+    };
+
+    const handleImageError = (event) => {
+      event.target.src = defaultImage;
+    };
+
+    // Difficulty helper methods
     const getDifficulty = () => {
-      const ingredients = getIngredients()
-      const ingredientCount = ingredients.length
-      
-      let difficulty = 'Easy'
-      let level = 1
-      
-      if (ingredientCount <= 3) {
-        difficulty = 'Easy'
-        level = 1
-      } else if (ingredientCount <= 5) {
-        difficulty = 'Medium'
-        level = 2
-      } else if (ingredientCount <= 7) {
-        difficulty = 'Hard'
-        level = 3
-      } else {
-        difficulty = 'Expert'
-        level = 4
-      }
-      
-      return { difficulty, level, ingredientCount }
-    }
-    
+      const ingredients = Object.keys(props.cocktail).filter(
+        (key) => key.startsWith("strIngredient") && props.cocktail[key]
+      );
+      const count = ingredients.length;
+
+      let difficulty = "Unknown";
+      if (count <= 3) difficulty = "Easy";
+      else if (count <= 6) difficulty = "Medium";
+      else difficulty = "Hard";
+
+      return {
+        ingredientCount: count,
+        difficulty,
+      };
+    };
+
     const getDifficultyColor = () => {
-      const { level } = getDifficulty()
-      const colors = {
-        1: '#27ae60', // Green - Easy
-        2: '#f39c12', // Orange - Medium  
-        3: '#e74c3c', // Red - Hard
-        4: '#8e44ad'  // Purple - Expert
-      }
-      return colors[level]
-    }
-    
+      const difficulty = getDifficulty().difficulty;
+      if (difficulty === "Easy") return "#b2f2bb";
+      if (difficulty === "Medium") return "#ffd43b";
+      if (difficulty === "Hard") return "#ff6b6b";
+      return "#ccc";
+    };
+
     const getDifficultyIcon = () => {
-      const { level } = getDifficulty()
-      const icons = {
-        1: '🟢', // Easy
-        2: '🟡', // Medium
-        3: '🔴', // Hard
-        4: '🟣'  // Expert
-      }
-      return icons[level]
-    }
-    
-    const formatDate = (dateString) => {
-      const date = new Date(dateString)
-      return date.toLocaleDateString()
-    }
-    
-    const truncateText = (text, maxLength) => {
-      if (text.length <= maxLength) return text
-      return text.substring(0, maxLength) + '...'
-    }
-    
+      const difficulty = getDifficulty().difficulty;
+      if (difficulty === "Easy") return "🟢";
+      if (difficulty === "Medium") return "🟡";
+      if (difficulty === "Hard") return "🔴";
+      return "❔";
+    };
+
     return {
       isFavorite,
+      ingredientsCount,
       selectCocktail,
       toggleFavorite,
-      getIngredients,
+      addMissingToShoppingList,
+      handleImageError,
+      defaultImage,
       getDifficulty,
       getDifficultyColor,
       getDifficultyIcon,
-      formatDate,
-      truncateText
-    }
-  }
-}
+    };
+  },
+};
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:wght@400;500&display=swap');
-
 .cocktail-card {
-  background: #111111;
+  background: rgba(45, 45, 45, 0.8);
   border-radius: 8px;
-  border: 1px solid #222;
   overflow: hidden;
+  border: 1px solid rgba(70, 70, 70, 0.5);
+  transition: all 0.2s ease;
+  position: relative;
   cursor: pointer;
-  transition: all 0.3s ease;
-  height: 100%;
 }
 
 .cocktail-card:hover {
-  border-color: #333;
-  transform: translateY(-2px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  background: rgba(55, 55, 55, 0.9);
+  border-color: rgba(100, 100, 100, 0.7);
 }
 
-.card-image {
+.cocktail-card.is-favorite {
+  border-color: rgba(231, 76, 60, 0.6);
+}
+
+.cocktail-card.is-custom {
+  border-color: rgba(155, 89, 182, 0.6);
+}
+
+.cocktail-image {
   position: relative;
-  width: 100%;
-  height: 400px;
+  height: 300px;
   overflow: hidden;
 }
 
-.card-image img {
+.cocktail-image img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   transition: transform 0.3s ease;
-  filter: brightness(0.8) contrast(1.1);
 }
 
-.cocktail-card:hover .card-image img {
+.cocktail-card:hover .cocktail-image img {
   transform: scale(1.05);
-  filter: brightness(0.9) contrast(1.2);
 }
 
-.card-overlay {
+/* Difficulty Badge */
+.difficulty-badge {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
+  top: 10px;
+  left: 10px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  color: #000;
+  font-weight: 600;
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 6px;
+}
+
+/* Action Buttons Overlay */
+.action-overlay {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  display: flex;
+  gap: 8px;
   opacity: 0;
   transition: opacity 0.3s ease;
 }
 
-.cocktail-card:hover .card-overlay {
+.cocktail-card:hover .action-overlay {
   opacity: 1;
 }
 
-.view-recipe {
-  color: #f5f5f5;
-  font-family: 'Inter', sans-serif;
-  font-weight: 400;
-  font-size: 13px;
-  padding: 8px 16px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 4px;
-  transition: all 0.3s ease;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-
-.view-recipe:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.5);
-}
-
-.card-content {
-  padding: 20px;
-  background: #111111;
-}
-
-.cocktail-name {
-  font-family: 'Playfair Display', serif;
-  font-size: 18px;
-  font-weight: 400;
-  margin: 0 0 12px 0;
-  color: #f5f5f5;
-  line-height: 1.3;
-}
-
-.cocktail-tags {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
-  flex-wrap: wrap;
-}
-
-.tag {
-  padding: 4px 8px;
-  border-radius: 3px;
-  font-size: 10px;
-  font-weight: 400;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  font-family: 'Inter', sans-serif;
-}
-
-.tag.category {
-  background: #1a1a1a;
-  color: #888;
-  border: 1px solid #333;
-}
-
-.tag.type.alcoholic {
-  background: #2a1a1a;
-  color: #a66;
-  border: 1px solid #433;
-}
-
-.tag.type.non {
-  background: #1a2a1a;
-  color: #6a6;
-  border: 1px solid #343;
-}
-
-.difficulty-info {
-  display: flex;
-  justify-content: flex-start;
-  align-items: center;
-  margin-bottom: 8px;
-  font-family: 'Inter', sans-serif;
-  font-size: 12px;
-}
-
-.ingredient-count {
-  color: #3498db;
-}
-
-.glass-type {
-  font-size: 12px;
-  color: #666;
-  margin: 8px 0 0 0;
-  font-family: 'Inter', sans-serif;
-  font-weight: 300;
-}
-
-.favorite-btn {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  background: rgba(0, 0, 0, 0.8);
+.action-btn {
+  background: rgba(0, 0, 0, 0.7);
   border: none;
   border-radius: 50%;
-  width: 32px;
-  height: 32px;
-  cursor: pointer;
-  font-size: 14px;
-  z-index: 3;
-  transition: all 0.3s ease;
-  backdrop-filter: blur(4px);
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(4px);
 }
 
-.favorite-btn:hover {
-  background: rgba(0, 0, 0, 0.95);
+.action-btn:hover {
+  background: rgba(0, 0, 0, 0.9);
   transform: scale(1.1);
 }
 
 .favorite-btn.active {
-  background: rgba(231, 76, 60, 0.9);
-  box-shadow: 0 0 12px rgba(231, 76, 60, 0.4);
+  background: rgba(231, 76, 60, 0.8);
 }
 
-.favorite-btn.active:hover {
-  background: rgba(231, 76, 60, 1);
+.shopping-btn:hover {
+  background: rgba(52, 152, 219, 0.8);
 }
 
+/* Custom Badge */
 .custom-badge {
   position: absolute;
   top: 8px;
-  left: 8px;
+  right: 8px;
   background: linear-gradient(135deg, #9b59b6, #8e44ad);
   color: white;
   padding: 4px 8px;
@@ -363,96 +314,105 @@ export default {
   display: flex;
   align-items: center;
   gap: 4px;
-  z-index: 2;
-  box-shadow: 0 2px 8px rgba(155, 89, 182, 0.3);
 }
 
-.custom-icon {
-  font-size: 12px;
-}
-
-.custom-text {
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.rating-badge {
+/* Card Overlay */
+.card-overlay {
   position: absolute;
-  top: 50px;
-  left: 8px;
-  background: rgba(0, 0, 0, 0.8);
-  color: #f39c12;
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 11px;
+  bottom: 10px;
+  right: 10px;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
   font-weight: 600;
+  pointer-events: none; /* overlay shouldn't block clicks */
+  opacity: 0.85;
+}
+
+/* Content Section */
+.cocktail-content {
+  padding: 16px;
+}
+
+.cocktail-name {
+  font-family: "Inter", sans-serif;
+  color: #f5f5f5;
+  margin-bottom: 12px;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.cocktail-tags {
   display: flex;
-  align-items: center;
-  gap: 4px;
-  z-index: 2;
-  backdrop-filter: blur(4px);
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
 }
 
-.rating-stars {
-  font-size: 12px;
-}
-
-.difficulty-badge {
-  position: absolute;
-  bottom: 8px;
-  right: 8px;
+.tag {
   padding: 4px 8px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
+  border-radius: 4px;
   font-size: 10px;
   font-weight: 600;
-  color: white;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  z-index: 2;
-}
-
-.difficulty-text {
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  font-size: 9px;
 }
 
-.custom-info {
-  margin-top: 12px;
-  padding-top: 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+.category-tag {
+  background: rgba(100, 100, 100, 0.3);
+  color: #ccc;
 }
 
-.creation-date {
-  font-family: 'Inter', sans-serif;
-  font-size: 11px;
-  color: #666;
-  margin-bottom: 4px;
+.alcoholic-tag {
+  background: rgba(139, 69, 19, 0.4);
+  color: #d2b48c;
 }
 
-.custom-notes {
-  font-family: 'Inter', sans-serif;
-  font-size: 11px;
+.cocktail-details {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.detail-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.detail-icon {
+  font-size: 14px;
   color: #888;
-  font-style: italic;
-  line-height: 1.4;
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-  .card-image {
-    height: 300px;
-  }
-  
-  .card-content {
-    padding: 16px;
-  }
-  
-  .cocktail-name {
-    font-size: 16px;
-  }
+.detail-text {
+  font-size: 13px;
+  color: #ccc;
+  font-family: "Inter", sans-serif;
+}
+
+/* Difficulty Info below content */
+.difficulty-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  margin-top: 12px;
+  font-weight: 600;
+  color: #eee;
+}
+
+.ingredient-count {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.difficulty-level {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 </style>
