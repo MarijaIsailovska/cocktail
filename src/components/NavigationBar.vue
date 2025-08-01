@@ -20,16 +20,22 @@
           <span v-if="favoritesCount > 0" class="nav-badge">{{ favoritesCount }}</span>
         </router-link>
         
+        <router-link to="/custom-cocktails" class="nav-link" active-class="active">
+          <span class="nav-icon">🧪</span>
+          <span class="nav-text">My Cocktails</span>
+          <span v-if="customCocktailsCount > 0" class="nav-badge custom-badge">{{ customCocktailsCount }}</span>
+        </router-link>
+        
         <router-link to="/my-bar" class="nav-link" active-class="active">
           <span class="nav-icon">🏠</span>
           <span class="nav-text">My Bar</span>
         </router-link>
         
         <router-link to="/shopping-list" class="nav-link" active-class="active">
-  <span class="nav-icon">📝</span>
-  <span class="nav-text">Shopping List</span>
-  <span v-if="shoppingListCount > 0" class="nav-badge">{{ shoppingListCount }}</span>
-</router-link>
+          <span class="nav-icon">📝</span>
+          <span class="nav-text">Shopping List</span>
+          <span v-if="shoppingListCount > 0" class="nav-badge">{{ shoppingListCount }}</span>
+        </router-link>
       </div>
     </div>
   </nav>
@@ -39,41 +45,28 @@
 import { computed } from 'vue'
 import { useFavoritesStore } from '../stores/favoritesStore'
 import { useShoppingListStore } from '../stores/shoppingListStore'
+import { useCustomCocktailsStore } from '../stores/customCocktailsStore'
 
 export default {
   name: 'NavigationBar',
   setup() {
     const favoritesStore = useFavoritesStore()
     const shoppingListStore = useShoppingListStore()
+    const customCocktailsStore = useCustomCocktailsStore()
     
     const favoritesCount = computed(() => favoritesStore.favoritesCount)
     const shoppingListCount = computed(() => shoppingListStore.itemsCount)
+    const customCocktailsCount = computed(() => customCocktailsStore.customCocktailsCount)
     
     return {
       favoritesCount,
-      shoppingListCount
+      shoppingListCount,
+      customCocktailsCount
     }
   }
 }
 </script>
 
-<style scoped>
-/* Add this to your existing styles */
-
-.nav-badge {
-  background: linear-gradient(135deg, #e74c3c, #c0392b);
-  color: white;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 2px 6px;
-  border-radius: 10px;
-  min-width: 18px;
-  text-align: center;
-  margin-left: 4px;
-}
-
-/* Keep all your existing styles... */
-</style>
 <style scoped>
 .navigation-bar {
   background: linear-gradient(135deg, #1a1a1a, #2d2d2d);
@@ -163,6 +156,10 @@ export default {
   border-radius: 10px;
   min-width: 18px;
   text-align: center;
+}
+
+.nav-badge.custom-badge {
+  background: linear-gradient(135deg, #9b59b6, #8e44ad);
 }
 
 /* Mobile Menu Button */

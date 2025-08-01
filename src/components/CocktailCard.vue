@@ -12,6 +12,18 @@
         <span class="heart-icon">{{ isFavorite ? '❤️' : '🤍' }}</span>
       </button>
       
+      <!-- Custom Badge -->
+      <div v-if="cocktail.isCustom" class="custom-badge">
+        <span class="custom-icon">🧪</span>
+        <span class="custom-text">Custom</span>
+      </div>
+      
+      <!-- Rating Badge for Custom Cocktails -->
+      <div v-if="cocktail.isCustom && cocktail.rating > 0" class="rating-badge">
+        <span class="rating-stars">⭐</span>
+        <span class="rating-value">{{ cocktail.rating.toFixed(1) }}</span>
+      </div>
+      
       <div class="difficulty-badge" :style="{ backgroundColor: getDifficultyColor() }">
         <span class="difficulty-icon">{{ getDifficultyIcon() }}</span>
         <span class="difficulty-text">{{ getDifficulty().difficulty }}</span>
@@ -32,13 +44,20 @@
         <span class="ingredient-count">
           📋 {{ getDifficulty().ingredientCount }} ingredients
         </span>
-        <span class="difficulty-level" :style="{ color: getDifficultyColor() }">
-          {{ getDifficultyIcon() }} {{ getDifficulty().difficulty }}
-        </span>
       </div>
       <p v-if="cocktail.strGlass" class="glass-type">
         🥃 {{ cocktail.strGlass }}
       </p>
+      
+      <!-- Custom Cocktail Info -->
+      <div v-if="cocktail.isCustom" class="custom-info">
+        <div class="creation-date">
+          Created {{ formatDate(cocktail.dateCreated) }}
+        </div>
+        <div v-if="cocktail.notes" class="custom-notes">
+          💭 {{ truncateText(cocktail.notes, 60) }}
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -71,7 +90,6 @@ export default {
       favoritesStore.toggleFavorite(props.cocktail.idDrink)
     }
     
-    // ... keep all your existing methods ...
     const getIngredients = () => {
       const ingredients = []
       for (let i = 1; i <= 15; i++) {
@@ -87,37 +105,16 @@ export default {
       const ingredients = getIngredients()
       const ingredientCount = ingredients.length
       
-      const instructions = props.cocktail.strInstructions?.toLowerCase() || ''
-      const complexTechniques = [
-        'muddle', 'layer', 'float', 'flame', 'rim', 'egg white', 
-        'double strain', 'dry shake', 'clarify', 'infuse'
-      ]
-      
-      const hasComplexTechnique = complexTechniques.some(technique => 
-        instructions.includes(technique)
-      )
-      
-      const uncommonIngredients = [
-        'absinthe', 'chartreuse', 'aperol', 'campari', 'benedictine',
-        'maraschino', 'yellow chartreuse', 'green chartreuse', 'fernet'
-      ]
-      
-      const hasUncommonIngredient = ingredients.some(ingredient =>
-        uncommonIngredients.some(uncommon => 
-          ingredient.toLowerCase().includes(uncommon)
-        )
-      )
-      
       let difficulty = 'Easy'
       let level = 1
       
-      if (ingredientCount <= 3 && !hasComplexTechnique && !hasUncommonIngredient) {
+      if (ingredientCount <= 3) {
         difficulty = 'Easy'
         level = 1
-      } else if (ingredientCount <= 5 && !hasComplexTechnique) {
+      } else if (ingredientCount <= 5) {
         difficulty = 'Medium'
         level = 2
-      } else if (ingredientCount <= 7 || hasComplexTechnique || hasUncommonIngredient) {
+      } else if (ingredientCount <= 7) {
         difficulty = 'Hard'
         level = 3
       } else {
@@ -150,6 +147,16 @@ export default {
       return icons[level]
     }
     
+    const formatDate = (dateString) => {
+      const date = new Date(dateString)
+      return date.toLocaleDateString()
+    }
+    
+    const truncateText = (text, maxLength) => {
+      if (text.length <= maxLength) return text
+      return text.substring(0, maxLength) + '...'
+    }
+    
     return {
       isFavorite,
       selectCocktail,
@@ -157,12 +164,15 @@ export default {
       getIngredients,
       getDifficulty,
       getDifficultyColor,
-      getDifficultyIcon
+      getDifficultyIcon,
+      formatDate,
+      truncateText
     }
   }
 }
 </script>
-<style>
+
+<style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:wght@400;500&display=swap');
 
 .cocktail-card {
@@ -280,10 +290,23 @@ export default {
   border: 1px solid #433;
 }
 
-.tag.type.non_alcoholic {
+.tag.type.non {
   background: #1a2a1a;
   color: #6a6;
   border: 1px solid #343;
+}
+
+.difficulty-info {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  margin-bottom: 8px;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+}
+
+.ingredient-count {
+  color: #3498db;
 }
 
 .glass-type {
@@ -293,6 +316,7 @@ export default {
   font-family: 'Inter', sans-serif;
   font-weight: 300;
 }
+
 .favorite-btn {
   position: absolute;
   top: 8px;
@@ -324,5 +348,111 @@ export default {
 
 .favorite-btn.active:hover {
   background: rgba(231, 76, 60, 1);
+}
+
+.custom-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: linear-gradient(135deg, #9b59b6, #8e44ad);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  z-index: 2;
+  box-shadow: 0 2px 8px rgba(155, 89, 182, 0.3);
+}
+
+.custom-icon {
+  font-size: 12px;
+}
+
+.custom-text {
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.rating-badge {
+  position: absolute;
+  top: 50px;
+  left: 8px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #f39c12;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  z-index: 2;
+  backdrop-filter: blur(4px);
+}
+
+.rating-stars {
+  font-size: 12px;
+}
+
+.difficulty-badge {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  padding: 4px 8px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  z-index: 2;
+}
+
+.difficulty-text {
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 9px;
+}
+
+.custom-info {
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.creation-date {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.custom-notes {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  color: #888;
+  font-style: italic;
+  line-height: 1.4;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .card-image {
+    height: 300px;
+  }
+  
+  .card-content {
+    padding: 16px;
+  }
+  
+  .cocktail-name {
+    font-size: 16px;
+  }
 }
 </style>

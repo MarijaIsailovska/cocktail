@@ -58,8 +58,12 @@
         <span class="stat-label">spirits</span>
       </div>
       <div class="stat-item">
-        <span class="stat-number">{{ canMakeCount }}</span>
-        <span class="stat-label">cocktails you can make</span>
+        <span class="stat-number">{{ liqueurCount }}</span>
+        <span class="stat-label">liqueurs</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-number">{{ mixersCount }}</span>
+        <span class="stat-label">mixers</span>
       </div>
       <button @click="clearInventory" class="clear-btn">
         <span class="clear-icon">🗑️</span>
@@ -93,48 +97,25 @@
       </div>
     </div>
 
-    <!-- Cocktails You Can Make -->
-    <div v-if="cocktailsYouCanMake.length > 0" class="can-make-section">
-      <h3 class="section-title">
-        🍸 Cocktails You Can Make ({{ cocktailsYouCanMake.length }})
-      </h3>
-      <div class="cocktails-grid">
-        <CocktailCard 
-          v-for="cocktail in cocktailsYouCanMake" 
-          :key="cocktail.idDrink"
-          :cocktail="cocktail"
-          @select-cocktail="viewCocktail"
-        />
-      </div>
-    </div>
-
     <!-- Empty State -->
     <div v-if="inventory.length === 0" class="empty-state">
       <div class="empty-icon">🍾</div>
       <h3 class="empty-title">Your bar is empty</h3>
       <p class="empty-description">
-        Start adding ingredients you have at home to see which cocktails you can make!
+        Start adding ingredients you have at home to track your inventory!
       </p>
     </div>
   </div>
 </template>
 
 <script>
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import CocktailCard from '@/components/CocktailCard.vue'
+import { ref, computed } from 'vue'
 import { useInventoryStore } from '@/stores/inventoryStore'
-import { useCocktailStore } from '@/stores/cocktailStore'
 
 export default {
   name: 'MyBarView',
-  components: {
-    CocktailCard
-  },
   setup() {
-    const router = useRouter()
     const inventoryStore = useInventoryStore()
-    const cocktailStore = useCocktailStore()
     
     const newIngredient = ref({
       name: '',
@@ -162,12 +143,13 @@ export default {
       inventory.value.filter(item => item.category === 'Spirits').length
     )
     
-    const cocktailsYouCanMake = computed(() => {
-      if (cocktailStore.cocktails.length === 0) return []
-      return inventoryStore.getCocktailsYouCanMake(cocktailStore.cocktails)
-    })
+    const liqueurCount = computed(() => 
+      inventory.value.filter(item => item.category === 'Liqueurs').length
+    )
     
-    const canMakeCount = computed(() => cocktailsYouCanMake.value.length)
+    const mixersCount = computed(() => 
+      inventory.value.filter(item => item.category === 'Mixers').length
+    )
     
     const addIngredient = () => {
       if (newIngredient.value.name.trim()) {
@@ -198,10 +180,6 @@ export default {
       }
     }
     
-    const viewCocktail = (cocktail) => {
-      router.push({ name: 'cocktail', params: { id: cocktail.idDrink } })
-    }
-    
     const getCategoryIcon = (category) => {
       const icons = {
         'Spirits': '🥃',
@@ -222,24 +200,17 @@ export default {
       return date.toLocaleDateString()
     }
     
-    onMounted(async () => {
-      if (cocktailStore.cocktails.length === 0) {
-        await cocktailStore.fetchCocktails()
-      }
-    })
-    
     return {
       newIngredient,
       inventory,
       ingredientCategories,
       ingredientsByCategory,
       spiritsCount,
-      cocktailsYouCanMake,
-      canMakeCount,
+      liqueurCount,
+      mixersCount,
       addIngredient,
       removeIngredient,
       clearInventory,
-      viewCocktail,
       getCategoryIcon,
       formatDate
     }
@@ -506,18 +477,6 @@ export default {
   color: #f39c12;
 }
 
-/* Cocktails You Can Make */
-.can-make-section {
-  margin-bottom: 40px;
-}
-
-.cocktails-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 20px;
-  margin-top: 24px;
-}
-
 /* Empty State */
 .empty-state {
   text-align: center;
@@ -561,7 +520,7 @@ export default {
     gap: 16px;
   }
   
-  .ingredients-grid, .cocktails-grid {
+  .ingredients-grid {
     grid-template-columns: 1fr;
   }
 }

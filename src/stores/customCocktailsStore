@@ -1,0 +1,248 @@
+import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
+
+export const useCustomCocktailsStore = defineStore('customCocktails', () => {
+  // State
+  const customCocktails = ref(JSON.parse(localStorage.getItem('mixology-custom-cocktails') || '[]'))
+  
+  // Getters
+  const customCocktailsCount = computed(() => customCocktails.value.length)
+  
+  const getAllCocktails = computed(() => (apiCocktails = []) => {
+    // Combine API cocktails with custom cocktails
+    return [...apiCocktails, ...customCocktails.value]
+  })
+  
+  // Actions
+  function createCustomCocktail(cocktailData) {
+    const customCocktail = {
+      idDrink: `custom_${Date.now()}`,
+      strDrink: cocktailData.name,
+      strDrinkThumb: cocktailData.image || getDefaultCocktailImage(),
+      strCategory: cocktailData.category || 'Custom',
+      strAlcoholic: cocktailData.alcoholic || 'Alcoholic',
+      strGlass: cocktailData.glass || 'Cocktail glass',
+      strInstructions: cocktailData.instructions,
+      strTags: cocktailData.tags || '',
+      
+      // Add ingredients (up to 15 like the API)
+      ...generateIngredientFields(cocktailData.ingredients),
+      
+      // Custom fields
+      isCustom: true,
+      dateCreated: new Date().toISOString(),
+      createdBy: 'user',
+      rating: 0,
+      timesRated: 0,
+      notes: cocktailData.notes || ''
+    }
+    
+    customCocktails.value.push(customCocktail)
+    saveCustomCocktails()
+    showNotification(`Created "${customCocktail.strDrink}" cocktail! 🍸`, 'success')
+    
+    return customCocktail
+  }
+  
+  function updateCustomCocktail(cocktailId, updatedData) {
+    const index = customCocktails.value.findIndex(c => c.idDrink === cocktailId)
+    if (index > -1) {
+      const updatedCocktail = {
+        ...customCocktails.value[index],
+        strDrink: updatedData.name,
+        strDrinkThumb: updatedData.image || getDefaultCocktailImage(),
+        strCategory: updatedData.category,
+        strAlcoholic: updatedData.alcoholic,
+        strGlass: updatedData.glass,
+        strInstructions: updatedData.instructions,
+        strTags: updatedData.tags,
+        notes: updatedData.notes,
+        
+        // Update ingredients
+        ...generateIngredientFields(updatedData.ingredients),
+        
+        dateModified: new Date().toISOString()
+      }
+      
+      customCocktails.value[index] = updatedCocktail
+      saveCustomCocktails()
+      showNotification(`Updated "${updatedCocktail.strDrink}" cocktail! ✏️`, 'success')
+      
+      return updatedCocktail
+    }
+  }
+  
+  function deleteCustomCocktail(cocktailId) {
+    const index = customCocktails.value.findIndex(c => c.idDrink === cocktailId)
+    if (index > -1) {
+      const cocktail = customCocktails.value[index]
+      customCocktails.value.splice(index, 1)
+      saveCustomCocktails()
+      showNotification(`Deleted "${cocktail.strDrink}" cocktail`, 'info')
+    }
+  }
+  
+  function duplicateCustomCocktail(cocktailId) {
+    const cocktail = customCocktails.value.find(c => c.idDrink === cocktailId)
+    if (cocktail) {
+      const duplicated = {
+        ...cocktail,
+        idDrink: `custom_${Date.now()}`,
+        strDrink: `${cocktail.strDrink} (Copy)`,
+        dateCreated: new Date().toISOString(),
+        dateModified: undefined
+      }
+      
+      customCocktails.value.push(duplicated)
+      saveCustomCocktails()
+      showNotification(`Duplicated "${cocktail.strDrink}" cocktail! 📋`, 'success')
+      
+      return duplicated
+    }
+  }
+  
+  function rateCocktail(cocktailId, rating) {
+    const cocktail = customCocktails.value.find(c => c.idDrink === cocktailId)
+    if (cocktail) {
+      const currentTotal = cocktail.rating * cocktail.timesRated
+      cocktail.timesRated += 1
+      cocktail.rating = (currentTotal + rating) / cocktail.timesRated
+      
+      saveCustomCocktails()
+      showNotification(`Rated "${cocktail.strDrink}" - ${rating} stars! ⭐`, 'success')
+    }
+  }
+  
+  function exportCustomCocktails() {
+    const data = JSON.stringify(customCocktails.value, null, 2)
+    const blob = new Blob([data], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `my-custom-cocktails-${new Date().toISOString().split('T')[0]}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+    showNotification('Custom cocktails exported! 📥', 'success')
+  }
+  
+  function importCustomCocktails(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        try {
+          const importedCocktails = JSON.parse(e.target.result)
+          
+          // Validate imported data
+          if (!Array.isArray(importedCocktails)) {
+            throw new Error('Invalid file format')
+          }
+          
+          // Add imported cocktails with new IDs to avoid conflicts
+          const processedCocktails = importedCocktails.map(cocktail => ({
+            ...cocktail,
+            idDrink: `custom_${Date.now()}_${Math.random()}`,
+            dateCreated: new Date().toISOString(),
+            isCustom: true
+          }))
+          
+          customCocktails.value.push(...processedCocktails)
+          saveCustomCocktails()
+          
+          showNotification(`Imported ${processedCocktails.length} custom cocktails! 📤`, 'success')
+          resolve(processedCocktails.length)
+        } catch (error) {
+          showNotification('Failed to import cocktails. Invalid file format.', 'error')
+          reject(error)
+        }
+      }
+      reader.readAsText(file)
+    })
+  }
+  
+  // Helper functions
+  function getDefaultCocktailImage() {
+    // Return a nice default cocktail image as data URL
+    return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgdmlld0JveD0iMCAwIDMwMCAzMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIiBmaWxsPSJsaW5lYXItZ3JhZGllbnQoMTM1ZGVnLCAjMWExYTFhLCAjMzMzKSIvPgo8Y2lyY2xlIGN4PSIxNTAiIGN5PSIxNTAiIHI9IjgwIiBmaWxsPSJyZ2JhKDI1NSwgMjU1LCAyNTUsIDAuMSkiLz4KPHN2ZyB4PSI5MCIgeT0iOTAiIHdpZHRoPSIxMjAiIGhlaWdodD0iMTIwIj4KICA8dGV4dCB4PSI2MCIgeT0iNzAiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSI0OCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+8J+NuDwvdGV4dD4KPC9zdmc+Cjwvc3ZnPgo='
+  }
+  
+  function generateIngredientFields(ingredients) {
+    const fields = {}
+    
+    // Clear all ingredient fields first
+    for (let i = 1; i <= 15; i++) {
+      fields[`strIngredient${i}`] = null
+      fields[`strMeasure${i}`] = null
+    }
+    
+    // Fill with provided ingredients
+    ingredients.forEach((ingredient, index) => {
+      if (index < 15) {
+        fields[`strIngredient${index + 1}`] = ingredient.name
+        fields[`strMeasure${index + 1}`] = ingredient.measure || ''
+      }
+    })
+    
+    return fields
+  }
+  
+  function saveCustomCocktails() {
+    localStorage.setItem('mixology-custom-cocktails', JSON.stringify(customCocktails.value))
+  }
+  
+  function showNotification(message, type = 'info') {
+    const colors = {
+      success: '#27ae60',
+      warning: '#f39c12',
+      info: '#3498db',
+      error: '#e74c3c'
+    }
+    
+    const toast = document.createElement('div')
+    toast.textContent = message
+    toast.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: ${colors[type]};
+      color: white;
+      padding: 12px 20px;
+      border-radius: 8px;
+      z-index: 10000;
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      transition: all 0.3s ease;
+      max-width: 300px;
+    `
+    
+    document.body.appendChild(toast)
+    
+    setTimeout(() => {
+      toast.style.opacity = '0'
+      toast.style.transform = 'translateX(100%)'
+      setTimeout(() => {
+        if (document.body.contains(toast)) {
+          document.body.removeChild(toast)
+        }
+      }, 300)
+    }, 4000)
+  }
+  
+  return {
+    // State
+    customCocktails,
+    
+    // Getters
+    customCocktailsCount,
+    getAllCocktails,
+    
+    // Actions
+    createCustomCocktail,
+    updateCustomCocktail,
+    deleteCustomCocktail,
+    duplicateCustomCocktail,
+    rateCocktail,
+    exportCustomCocktails,
+    importCustomCocktails
+  }
+})
