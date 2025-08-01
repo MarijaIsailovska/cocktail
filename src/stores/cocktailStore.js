@@ -13,7 +13,8 @@ export const useCocktailStore = defineStore('cocktails', () => {
     category: 'all',
     alcoholic: 'all',
     difficulty: 'all',
-    glass: 'all'
+    glass: 'all',
+    showCustomOnly: false
   })
   
   // Filter options
@@ -23,9 +24,20 @@ export const useCocktailStore = defineStore('cocktails', () => {
     difficulties: ['Easy', 'Medium', 'Hard', 'Expert']
   })
 
-  // Getters
+  // Getters - Combined API + Custom cocktails
+  const allCocktails = computed(() => {
+    // Import custom cocktails store dynamically to avoid circular dependency
+    const customCocktails = getCustomCocktails()
+    return [...cocktails.value, ...customCocktails]
+  })
+
   const filteredCocktails = computed(() => {
-    let filtered = [...cocktails.value]
+    let filtered = [...allCocktails.value]
+    
+    // Show only custom cocktails filter
+    if (filters.value.showCustomOnly) {
+      filtered = filtered.filter(cocktail => cocktail.isCustom)
+    }
     
     // Search filter
     if (filters.value.search) {
@@ -34,7 +46,10 @@ export const useCocktailStore = defineStore('cocktails', () => {
         cocktail.strDrink.toLowerCase().includes(searchTerm) ||
         getIngredientsList(cocktail).some(ingredient => 
           ingredient.toLowerCase().includes(searchTerm)
-        )
+        ) ||
+        (cocktail.strInstructions && cocktail.strInstructions.toLowerCase().includes(searchTerm)) ||
+        (cocktail.strTags && cocktail.strTags.toLowerCase().includes(searchTerm)) ||
+        (cocktail.notes && cocktail.notes.toLowerCase().includes(searchTerm))
       )
     }
     
@@ -75,8 +90,25 @@ export const useCocktailStore = defineStore('cocktails', () => {
     filters.value.category !== 'all' ||
     filters.value.alcoholic !== 'all' ||
     filters.value.difficulty !== 'all' ||
-    filters.value.glass !== 'all'
+    filters.value.glass !== 'all' ||
+    filters.value.showCustomOnly
   )
+
+  // Get a single cocktail by ID (API or custom)
+  const getCocktailById = computed(() => (id) => {
+    return allCocktails.value.find(cocktail => cocktail.idDrink === id)
+  })
+
+  // Get cocktails you can make with your bar inventory
+  const getCocktailsYouCanMake = computed(() => {
+    try {
+      const { useInventoryStore } = require('./inventoryStore')
+      const inventoryStore = useInventoryStore()
+      return inventoryStore.getCocktailsYouCanMake(allCocktails.value)
+    } catch (error) {
+      return []
+    }
+  })
 
   // Actions
   async function fetchCocktails() {
@@ -122,8 +154,8 @@ export const useCocktailStore = defineStore('cocktails', () => {
   }
 
   function populateFilterOptions() {
-    // Get unique categories
-    const categories = cocktails.value
+    // Get unique categories from both API and custom cocktails
+    const categories = allCocktails.value
       .map(c => c.strCategory)
       .filter(Boolean)
       .map(category => normalizeText(category))
@@ -131,7 +163,7 @@ export const useCocktailStore = defineStore('cocktails', () => {
     filterOptions.value.categories = [...new Set(categories)].sort()
     
     // Get unique glass types
-    const glasses = cocktails.value
+    const glasses = allCocktails.value
       .map(c => c.strGlass)
       .filter(Boolean)
       .map(glass => normalizeText(glass))
@@ -145,11 +177,36 @@ export const useCocktailStore = defineStore('cocktails', () => {
       category: 'all',
       alcoholic: 'all',
       difficulty: 'all',
-      glass: 'all'
+      glass: 'all',
+      showCustomOnly: false
+    }
+  }
+
+  function toggleCustomOnlyFilter() {
+    filters.value.showCustomOnly = !filters.value.showCustomOnly
+  }
+
+  function addCocktailToShoppingList(cocktail) {
+    try {
+      const { useShoppingListStore } = require('./shoppingListStore')
+      const shoppingListStore = useShoppingListStore()
+      shoppingListStore.addCocktailToShoppingList(cocktail)
+    } catch (error) {
+      console.error('Shopping list store not available:', error)
     }
   }
 
   // Helper functions
+  function getCustomCocktails() {
+    try {
+      const customCocktailsData = localStorage.getItem('mixology-custom-cocktails')
+      return customCocktailsData ? JSON.parse(customCocktailsData) : []
+    } catch (error) {
+      console.error('Error loading custom cocktails:', error)
+      return []
+    }
+  }
+
   function getIngredientsList(cocktail) {
     const ingredients = []
     for (let i = 1; i <= 15; i++) {
@@ -174,10 +231,40 @@ export const useCocktailStore = defineStore('cocktails', () => {
     const ingredients = getIngredientsList(cocktail)
     const ingredientCount = ingredients.length
     
-    if (ingredientCount <= 3) return 'Easy'
-    if (ingredientCount <= 5) return 'Medium'
-    if (ingredientCount <= 7) return 'Hard'
-    return 'Expert'
+    const instructions = cocktail.strInstructions?.toLowerCase() || ''
+    const complexTechniques = [
+      'muddle', 'layer', 'float', 'flame', 'rim', 'egg white', 
+      'double strain', 'dry shake', 'clarify', 'infuse'
+    ]
+    
+    const hasComplexTechnique = complexTechniques.some(technique => 
+      instructions.includes(technique)
+    )
+    
+    const uncommonIngredients = [
+      'absinthe', 'chartreuse', 'aperol', 'campari', 'benedictine',
+      'maraschino', 'yellow chartreuse', 'green chartreuse', 'fernet'
+    ]
+    
+    const hasUncommonIngredient = ingredients.some(ingredient =>
+      uncommonIngredients.some(uncommon => 
+        ingredient.toLowerCase().includes(uncommon)
+      )
+    )
+    
+    let difficulty = 'Easy'
+    
+    if (ingredientCount <= 3 && !hasComplexTechnique && !hasUncommonIngredient) {
+      difficulty = 'Easy'
+    } else if (ingredientCount <= 5 && !hasComplexTechnique) {
+      difficulty = 'Medium'
+    } else if (ingredientCount <= 7 || hasComplexTechnique || hasUncommonIngredient) {
+      difficulty = 'Hard'
+    } else {
+      difficulty = 'Expert'
+    }
+    
+    return difficulty
   }
 
   return {
@@ -189,12 +276,18 @@ export const useCocktailStore = defineStore('cocktails', () => {
     filterOptions,
     
     // Getters
+    allCocktails,
     filteredCocktails,
     hasActiveFilters,
+    getCocktailById,
+    getCocktailsYouCanMake,
     
     // Actions
     fetchCocktails,
     clearFilters,
+    toggleCustomOnlyFilter,
+    addCocktailToShoppingList,
+    populateFilterOptions,
     
     // Helper methods
     getIngredientsList,

@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '@/views/HomeView.vue'
 import CocktailView from '@/views/CocktailView.vue'
 import FavoritesView from '@/views/FavoritesView.vue'
+import CustomCocktailsView from '@/views/CustomCocktailsView.vue'
 import MyBarView from '@/views/MyBarView.vue'
 import ShoppingListView from '@/views/ShoppingListView.vue'
 
@@ -30,6 +31,14 @@ const router = createRouter({
       component: FavoritesView,
       meta: {
         title: 'My Favorites - Mixology'
+      }
+    },
+    {
+      path: '/custom-cocktails',
+      name: 'custom-cocktails',
+      component: CustomCocktailsView,
+      meta: {
+        title: 'My Custom Cocktails - Mixology'
       }
     },
     {
