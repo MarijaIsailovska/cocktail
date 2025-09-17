@@ -6,7 +6,7 @@ A modern web application for cocktail discovery and management, built with Vue 3
 
 ## Contributors
 
-- [Your Name Here] - [Your Index Number]
+- Marija Isailovska - 221028
 
 ## Technologies Used
 
