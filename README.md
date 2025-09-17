@@ -1,5 +1,59 @@
-# Vue 3 + Vite
+# Mixology - Cocktail Discovery & Management Application
 
-This template should help get you started developing with Vue 3 in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+## Project Description
 
-Learn more about IDE Support for Vue in the [Vue Docs Scaling up Guide](https://vuejs.org/guide/scaling-up/tooling.html#ide-support).
+A modern web application for cocktail discovery and management, built with Vue 3. The application allows users to browse cocktails, create custom recipes, manage bar inventory, and generate shopping lists.
+
+## Contributors
+
+- [Your Name Here] - [Your Index Number]
+
+## Technologies Used
+
+- Vue 3 with Composition API
+- Pinia for state management
+- Modern CSS with responsive design
+- TheCocktailDB API integration
+- Local storage for data persistence
+
+## Installation and Setup
+
+1. Navigate to the project directory:
+   ```bash
+   cd src/
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+3. Start the development server:
+   ```bash
+   npm run dev
+   ```
+
+4. Open your browser and navigate to `http://localhost:5173`
+
+## Project Structure
+
+```
+├── docs/
+│   ├── project_report.docx
+├── README.md
+└── src/
+    ├── components/
+    ├── views/
+    ├── stores/
+    ├── router/
+    └── assets/
+```
+
+## Features
+
+- Cocktail discovery and search
+- Custom recipe creation
+- Bar inventory management
+- Smart shopping list generation
+- Favorites system
+- Responsive design for all devices
